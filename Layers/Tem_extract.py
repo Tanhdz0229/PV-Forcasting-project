@@ -4,11 +4,10 @@ import math
 
 
 class AutoCorrelation(nn.Module):
-    def __init__(self, mask_flag=True, factor=1, scale=None, attention_dropout=0.1, output_attention=False,pre_leg=144):
+    def __init__(self, factor=1, scale=None, attention_dropout=0.1, output_attention=False,pre_leg=144):
         super(AutoCorrelation, self).__init__()
         self.factor = factor
         self.scale = scale
-        self.mask_flag = mask_flag
         self.output_attention = output_attention
         self.pre_leg = pre_leg
         self.dropout = nn.Dropout(attention_dropout)
@@ -17,11 +16,9 @@ class AutoCorrelation(nn.Module):
         channel = values.shape[2]
         length = values.shape[3]
         top_k = int(self.factor * math.log(length))
-
         mean_value = torch.mean(torch.mean(corr, dim=1), dim=1)
         index = torch.topk(torch.mean(mean_value, dim=0), top_k, dim=-1)[1]
         weights = torch.stack([mean_value[:, index[i]] for i in range(top_k)], dim=-1)
-        
         # update corr
         tmp_corr = torch.softmax(weights, dim=-1)
         # aggregation
@@ -32,20 +29,15 @@ class AutoCorrelation(nn.Module):
             delays_agg = delays_agg + pattern * \
                          (tmp_corr[:, i].unsqueeze(1).unsqueeze(1).unsqueeze(1).repeat(1, head, channel, length))
         return delays_agg
-    
-
-    def forward(self, queries, keys, values, attn_mask):
+    def forward(self, queries, keys, values):
         B, L, H, E = queries.shape
-        _, S, _, D = values.shape
         values = values[:, :L, :, :]
         keys = keys[:, :L, :, :]
-
         #  Wiener–Khinchin theorem
         q_fft = torch.fft.rfft(queries.permute(0, 2, 3, 1).contiguous(), dim=-1)
         k_fft = torch.fft.rfft(keys.permute(0, 2, 3, 1).contiguous(), dim=-1)
         res = q_fft * torch.conj(k_fft)
         corr = torch.fft.irfft(res, n=L, dim=-1)
-
         V = self.temporal_corr(values.permute(0, 2, 3, 1).contiguous(), corr).permute(0, 3, 1, 2)
 
         return V.contiguous(), corr.permute(0, 3, 1, 2)
@@ -53,12 +45,14 @@ class AutoCorrelation(nn.Module):
 
 
 class AutoCorrelationLayer(nn.Module):
-    def __init__(self, correlation, d_model, n_heads, d_keys=None,
+    def __init__(self, correlation, d_model, n_heads=2, d_keys=None,
                  d_values=None):
         super(AutoCorrelationLayer, self).__init__()
 
-        d_keys = d_keys or (d_model // n_heads)
-        d_values = d_values or (d_model // n_heads)
+        # d_keys = d_keys or (d_model // n_heads)
+        # d_values = d_values or (d_model // n_heads)
+        d_keys = 3
+        d_values = 3
 
         self.inner_correlation = correlation
         self.query_projection = nn.Linear(d_model, d_keys * n_heads)
@@ -67,7 +61,7 @@ class AutoCorrelationLayer(nn.Module):
         self.out_projection = nn.Linear(d_values * n_heads, d_model)
         self.n_heads = n_heads
 
-    def forward(self, queries, keys, values, attn_mask):
+    def forward(self, queries, keys, values):
         B, L, _ = queries.shape
         _, S, _ = keys.shape
         H = self.n_heads
@@ -79,9 +73,8 @@ class AutoCorrelationLayer(nn.Module):
         out, attn = self.inner_correlation(
             queries,
             keys,
-            values,
-            attn_mask
+            values
         )
-        out = out.view(B, L, -1)
 
-        return self.out_projection(out), attn
+
+        return out, attn
