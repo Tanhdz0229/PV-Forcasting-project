@@ -19,6 +19,7 @@ for i, file_name in enumerate(file_names):
         
         # Loop through each CSV file and read it into a pandas DataFrame
         for csv_file in files_in_zip:
+            
             with zip_ref.open(csv_file) as file:
                 df = pd.read_csv(file)
                 position = df.iloc[0:1][['Latitude','Longitude']]
