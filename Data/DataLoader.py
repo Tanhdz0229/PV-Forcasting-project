@@ -4,14 +4,24 @@ from torch.utils.data import Dataset
 from sklearn.preprocessing import StandardScaler
 import torch
 
+<<<<<<< HEAD
+from torch.utils.data import DataLoader
+
+class Dataset_Custom(Dataset):
+    def __init__(self, root_path, scale  = True):
+=======
 
 class Dataset_Custom(Dataset):
     def __init__(self, root_path, target =' P1 Total AC Power (Positive)', scale  = True):
+>>>>>>> f597dbd8bd71228ea1b259f3c4d32bcd932b7e37
         # size [seq_len, label_len, pred_len]
         self.seq_len = 144*7
         self.pred_len = 144
         self.root_path = root_path
+<<<<<<< HEAD
+=======
         self.target = target
+>>>>>>> f597dbd8bd71228ea1b259f3c4d32bcd932b7e37
         self.scale = scale
         self.__read_data__()
         self.x_end_idx = self.get_x_end_idx()
@@ -40,6 +50,15 @@ class Dataset_Custom(Dataset):
         label_end   =  self.x_end_idx[index]
         seq_start   =  label_end - self.pred_len - self.seq_len
         seq_end     =  label_end - self.pred_len
+<<<<<<< HEAD
+        train_data  =  self.data_values.iloc[seq_start:seq_end].values
+        target_data =  self.data_values.iloc[seq_start:label_end, 2].values
+        train_time =  self.data_time[seq_start:label_end]
+        x = torch.from_numpy(train_data).type(torch.float)
+        y = torch.from_numpy(target_data).type(torch.float)
+        t = torch.from_numpy(train_time).type(torch.float)
+        return x, y, t
+=======
         train_data  =  self.data_values[seq_start: seq_end]
         target_data =  self.data_values[seq_start : label_end,2]
         train_time =  self.data_time[seq_start: label_end]
@@ -50,6 +69,7 @@ class Dataset_Custom(Dataset):
         t = torch.from_numpy(train_time).type(torch.float)
         return x,y,t
 
+>>>>>>> f597dbd8bd71228ea1b259f3c4d32bcd932b7e37
     def __len__(self):
         return  len(self.x_end_idx)
     def inverse_transform(self, data):
@@ -58,4 +78,17 @@ class Dataset_Custom(Dataset):
         x_index_set = range(self.seq_len+self.pred_len, self.df_leng +self.pred_len)
         x_end_idx = [x_index_set[j* self.pred_len] for j in range((len(x_index_set)) // self.pred_len)]
         return x_end_idx
+<<<<<<< HEAD
+
+
+def data_provider():
+    data_set = Dataset_Custom(root_path= 'C:\\Thanhnt\\PV-Forcasting-project\\Data\\Dataset\\Shibaura\\2012_2017.csv',  scale  = True
+    )
+    data_loader = DataLoader(
+        data_set,
+        batch_size=32 ,
+        shuffle  =True)
+    return data_loader
+=======
     
+>>>>>>> f597dbd8bd71228ea1b259f3c4d32bcd932b7e37
